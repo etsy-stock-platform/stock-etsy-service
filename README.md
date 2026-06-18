@@ -13,3 +13,16 @@ Health endpoint:
 ```text
 GET /health
 ```
+
+Auth-protected Etsy check endpoint:
+
+```text
+GET /etsy/auth-check
+```
+
+Local auth service URL is configured with:
+
+```text
+AUTH_SERVICE_URL=http://localhost:8081
+AUTH_SERVICE_REQUEST_TIMEOUT=5s
+```

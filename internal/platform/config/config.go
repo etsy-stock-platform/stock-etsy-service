@@ -16,7 +16,7 @@ type Config struct {
 	HTTPAddr       string
 	FrontendOrigin string
 	Database       DatabaseConfig
-	AuthServiceURL string
+	AuthService    AuthServiceConfig
 	Etsy           EtsyConfig
 	Security       SecurityConfig
 	Sync           SyncConfig
@@ -31,6 +31,11 @@ type DatabaseConfig struct {
 	SSLMode  string
 	MaxConns int32
 	MinConns int32
+}
+
+type AuthServiceConfig struct {
+	BaseURL        string
+	RequestTimeout time.Duration
 }
 
 type EtsyConfig struct {
@@ -70,7 +75,10 @@ func Load() (*Config, error) {
 			MaxConns: int32(getEnvInt("DB_MAX_CONNS", 10)),
 			MinConns: int32(getEnvInt("DB_MIN_CONNS", 1)),
 		},
-		AuthServiceURL: getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
+		AuthService: AuthServiceConfig{
+			BaseURL:        getEnv("AUTH_SERVICE_URL", "http://localhost:8081"),
+			RequestTimeout: getEnvDuration("AUTH_SERVICE_REQUEST_TIMEOUT", 5*time.Second),
+		},
 		Etsy: EtsyConfig{
 			APIBaseURL:        getEnv("ETSY_API_BASE_URL", "https://openapi.etsy.com/v3/application"),
 			OAuthAuthorizeURL: getEnv("ETSY_OAUTH_AUTHORIZE_URL", "https://www.etsy.com/oauth/connect"),

@@ -2,9 +2,11 @@ package httpserver
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
+	"stock-etsy-service/internal/platform/authclient"
 	"stock-etsy-service/internal/platform/config"
 	"stock-etsy-service/internal/platform/response"
 
@@ -13,7 +15,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func New(cfg *config.Config, dbPool *pgxpool.Pool) *http.Server {
+func New(cfg *config.Config, dbPool *pgxpool.Pool) (*http.Server, error) {
+	authClient, err := authclient.New(cfg.AuthService.BaseURL, cfg.AuthService.RequestTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("create auth client: %w", err)
+	}
+
 	router := chi.NewRouter()
 
 	router.Use(middleware.RequestID)
@@ -22,12 +29,16 @@ func New(cfg *config.Config, dbPool *pgxpool.Pool) *http.Server {
 	router.Use(cors(cfg.FrontendOrigin))
 
 	router.Get("/health", healthHandler(dbPool))
+	router.Route("/etsy", func(r chi.Router) {
+		r.Use(requireAuth(authClient))
+		r.Get("/auth-check", authCheckHandler)
+	})
 
 	return &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
-	}
+	}, nil
 }
 
 func healthHandler(dbPool *pgxpool.Pool) http.HandlerFunc {
@@ -50,6 +61,18 @@ func healthHandler(dbPool *pgxpool.Pool) http.HandlerFunc {
 			"database": "up",
 		})
 	}
+}
+
+func authCheckHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := UserIDFromContext(r.Context())
+	if !ok {
+		response.WriteError(w, http.StatusInternalServerError, "current_user_missing", "current user missing")
+		return
+	}
+
+	response.WriteJSON(w, http.StatusOK, map[string]any{
+		"user_id": userID,
+	})
 }
 
 func cors(frontendOrigin string) func(http.Handler) http.Handler {
