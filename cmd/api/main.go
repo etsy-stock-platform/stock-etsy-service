@@ -30,7 +30,10 @@ func main() {
 	}
 	defer dbPool.Close()
 
-	server := httpserver.New(cfg, dbPool)
+	server, err := httpserver.New(cfg, dbPool)
+	if err != nil {
+		log.Fatalf("create http server: %v", err)
+	}
 
 	go func() {
 		log.Printf("etsy service listening on %s", cfg.HTTPAddr)
